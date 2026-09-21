@@ -1,32 +1,67 @@
+import os
+
 from motor.motor_asyncio import AsyncIOMotorClient as _mongo_client_
 from pymongo import MongoClient
-from pyrogram import Client
 
 import config
 
 from ..logging import LOGGER
 
-TEMP_MONGODB = ""
+
+# ---------------------------------------------------------
+# Get MongoDB URI
+# ---------------------------------------------------------
+
+MONGO_URI = (
+    getattr(config, "MONGO_DB_URI", None)
+    or os.getenv("MONGO_DB_URI")
+    or ""
+).strip()
 
 
-if config.MONGO_DB_URI is None:
-    LOGGER(__name__).warning("No MONGO DB URL found. LOL")
-    temp_client = Client(
-        "Anon",
-        bot_token=config.BOT_TOKEN,
-        api_id=config.API_ID,
-        api_hash=config.API_HASH,
+# ---------------------------------------------------------
+# Validate MongoDB URI
+# ---------------------------------------------------------
+
+if not MONGO_URI:
+    LOGGER(__name__).error(
+        "MONGO_DB_URI is missing or empty. "
+        "Please add MONGO_DB_URI to Heroku Config Vars."
     )
-    temp_client.start()
-    info = temp_client.get_me()
-    username = info.username
-    temp_client.stop()
-    _mongo_async_ = _mongo_client_(TEMP_MONGODB)
-    _mongo_sync_ = MongoClient(TEMP_MONGODB)
-    mongodb = _mongo_async_[username]
-    pymongodb = _mongo_sync_[username]
-else:
-    _mongo_async_ = _mongo_client_(config.MONGO_DB_URI)
-    _mongo_sync_ = MongoClient(config.MONGO_DB_URI)
+
+    raise RuntimeError(
+        "MONGO_DB_URI is missing or empty."
+    )
+
+
+# ---------------------------------------------------------
+# Connect to MongoDB
+# ---------------------------------------------------------
+
+try:
+
+    _mongo_async_ = _mongo_client_(
+        MONGO_URI,
+        serverSelectionTimeoutMS=10000,
+    )
+
+    _mongo_sync_ = MongoClient(
+        MONGO_URI,
+        serverSelectionTimeoutMS=10000,
+    )
+
+    # Database name
     mongodb = _mongo_async_.Anon
     pymongodb = _mongo_sync_.Anon
+
+    LOGGER(__name__).info(
+        "MongoDB client initialized successfully."
+    )
+
+except Exception as e:
+
+    LOGGER(__name__).error(
+        f"MongoDB connection initialization failed: {e}"
+    )
+
+    raise
