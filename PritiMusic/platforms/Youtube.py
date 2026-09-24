@@ -5,13 +5,12 @@ from typing import Union
 import yt_dlp
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
-# Nayi library import kar li gayi hai
-from youtubesearchpython.__future__ import VideosSearch, Playlist
+from py_yt import VideosSearch, Playlist
 import aiohttp
 
 API_URL = os.environ.get("SHRUTI_API_URL", "https://api.shrutibots.site")
 
-API_KEY = os.environ.get("SHRUTI_API_KEY", "ShrutiBotsC0WH1GowF2HkGoKv4F3y") ## Get This API KEY FROM TELEGRAM BOT USERNAME: @SHRUTIAPIBOT 
+API_KEY = os.environ.get("SHRUTI_API_KEY", "ShrutiBotsdHuzQt3bGAwymyxq8QcW") ## Get This API KEY FROM TELEGRAM BOT USERNAME: @SHRUTIAPIBOT 
 
 DOWNLOAD_DIR = "downloads"
 
@@ -220,32 +219,24 @@ class YouTubeAPI:
             link = link.split("&")[0]
         ytdl_opts = {"quiet": True}
         ydl = yt_dlp.YoutubeDL(ytdl_opts)
-        
-        formats_available = []
-        loop = asyncio.get_event_loop()
-        
-        try:
-            # 🚀 Anti-Lag Fix: Background execution
-            r = await loop.run_in_executor(None, lambda: ydl.extract_info(link, download=False))
-            if r and "formats" in r:
-                for format in r["formats"]:
-                    try:
-                        if "dash" not in str(format.get("format", "")).lower():
-                            formats_available.append(
-                                {
-                                    "format": format.get("format"),
-                                    "filesize": format.get("filesize"),
-                                    "format_id": format.get("format_id"),
-                                    "ext": format.get("ext"),
-                                    "format_note": format.get("format_note"),
-                                    "yturl": link,
-                                }
-                            )
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-            
+        with ydl:
+            formats_available = []
+            r = ydl.extract_info(link, download=False)
+            for format in r["formats"]:
+                try:
+                    if "dash" not in str(format["format"]).lower():
+                        formats_available.append(
+                            {
+                                "format": format["format"],
+                                "filesize": format.get("filesize"),
+                                "format_id": format["format_id"],
+                                "ext": format["ext"],
+                                "format_note": format["format_note"],
+                                "yturl": link,
+                            }
+                        )
+                except Exception:
+                    continue
         return formats_available, link
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
