@@ -1,11 +1,3 @@
-# Copyright (C) 2021-2022 by Oyekanhaa@Github, < https://github.com/Oyekanhaa>.
-#
-# This file is part of < https://github.com/Oyekanhaa/KanhaMusic > project,
-# and is released under the "GNU v3.0 License Agreement".
-# Please see < https://github.com/Oyekanhaa/KanhaMusic/blob/master/LICENSE >
-#
-# All rights reserved
-
 import asyncio
 import os
 import re
@@ -13,11 +5,13 @@ from typing import Union
 import yt_dlp
 from pyrogram.enums import MessageEntityType
 from pyrogram.types import Message
-from py_yt import VideosSearch, Playlist
+# Nayi library import kar li gayi hai
+from youtubesearchpython.__future__ import VideosSearch, Playlist
 import aiohttp
 
-API_URL = os.environ.get("MEOW_API_URL", "https://api.shrutibots.site")
-API_KEY = os.environ.get("MEOW_API_KEY", "ShrutiBots3I27EDK78QaT0jdh9Tfn") # 🔑 Get Key: @MeowApiRobot On Telegram 
+API_URL = os.environ.get("SHRUTI_API_URL", "https://api.shrutibots.site")
+
+API_KEY = os.environ.get("SHRUTI_API_KEY", "ShrutiBotsC0WH1GowF2HkGoKv4F3y") ## Get This API KEY FROM TELEGRAM BOT USERNAME: @SHRUTIAPIBOT 
 
 DOWNLOAD_DIR = "downloads"
 
@@ -34,21 +28,22 @@ async def download_song(link: str) -> str:
 
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp3")
-    
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 10000:
+    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
     try:
         async with aiohttp.ClientSession() as session:
-            stream_url = f"{API_URL}/stream/{video_id}?key={API_KEY}&type=audio&quality=128"
-            async with session.get(stream_url, timeout=aiohttp.ClientTimeout(total=300)) as resp:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "audio", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=300)
+            ) as resp:
                 if resp.status != 200:
                     return None
                 with open(file_path, "wb") as f:
                     async for chunk in resp.content.iter_chunked(131072):
                         f.write(chunk)
-        
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 10000:
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             return file_path
         return None
     except Exception:
@@ -67,21 +62,22 @@ async def download_video(link: str) -> str:
 
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     file_path = os.path.join(DOWNLOAD_DIR, f"{video_id}.mp4")
-    
-    if os.path.exists(file_path) and os.path.getsize(file_path) > 10000:
+    if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
         return file_path
 
     try:
         async with aiohttp.ClientSession() as session:
-            stream_url = f"{API_URL}/stream/{video_id}?key={API_KEY}&type=video&quality=480"
-            async with session.get(stream_url, timeout=aiohttp.ClientTimeout(total=600)) as resp:
+            async with session.get(
+                f"{API_URL}/download",
+                params={"url": video_id, "type": "video", "api_key": API_KEY},
+                timeout=aiohttp.ClientTimeout(total=600)
+            ) as resp:
                 if resp.status != 200:
                     return None
                 with open(file_path, "wb") as f:
                     async for chunk in resp.content.iter_chunked(131072):
                         f.write(chunk)
-        
-        if os.path.exists(file_path) and os.path.getsize(file_path) > 10000:
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
             return file_path
         return None
     except Exception:
@@ -224,24 +220,32 @@ class YouTubeAPI:
             link = link.split("&")[0]
         ytdl_opts = {"quiet": True}
         ydl = yt_dlp.YoutubeDL(ytdl_opts)
-        with ydl:
-            formats_available = []
-            r = ydl.extract_info(link, download=False)
-            for format in r["formats"]:
-                try:
-                    if "dash" not in str(format["format"]).lower():
-                        formats_available.append(
-                            {
-                                "format": format["format"],
-                                "filesize": format.get("filesize"),
-                                "format_id": format["format_id"],
-                                "ext": format["ext"],
-                                "format_note": format["format_note"],
-                                "yturl": link,
-                            }
-                        )
-                except Exception:
-                    continue
+        
+        formats_available = []
+        loop = asyncio.get_event_loop()
+        
+        try:
+            # 🚀 Anti-Lag Fix: Background execution
+            r = await loop.run_in_executor(None, lambda: ydl.extract_info(link, download=False))
+            if r and "formats" in r:
+                for format in r["formats"]:
+                    try:
+                        if "dash" not in str(format.get("format", "")).lower():
+                            formats_available.append(
+                                {
+                                    "format": format.get("format"),
+                                    "filesize": format.get("filesize"),
+                                    "format_id": format.get("format_id"),
+                                    "ext": format.get("ext"),
+                                    "format_note": format.get("format_note"),
+                                    "yturl": link,
+                                }
+                            )
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+            
         return formats_available, link
 
     async def slider(self, link: str, query_type: int, videoid: Union[bool, str] = None):
